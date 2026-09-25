@@ -75,6 +75,18 @@
   .score {
     display: block; width: 100%; max-width: 1100px; height: auto; margin: 0 auto;
   }
+  .scorewrap { position: relative; max-width: 1100px; margin: 0 auto; }
+  .hl {
+    position: absolute; display: none; pointer-events: none;
+    background: rgba(230, 0, 18, .16); border: 3px solid #e60012; border-radius: 8px;
+    transition: left .08s linear, top .08s linear, width .08s linear;
+  }
+  .hl.show { display: block; }
+  .hl span {
+    position: absolute; right: 4px; top: 4px; background: #e60012; color: #fff;
+    font-size: 14px; font-weight: bold; padding: 1px 8px; border-radius: 10px; white-space: nowrap;
+  }
+  .hl span:empty { display: none; }
   .note { text-align: center; color: var(--sub); font-size: 14px; margin-top: 16px; }
 
   @media (max-width: 600px) {
@@ -131,7 +143,10 @@
 
 <main>
   <p class="trial">おためし版です。リコーダー１だけ つかえます。</p>
-  <img class="score" id="score" alt="">
+  <div class="scorewrap">
+    <img class="score" id="score" alt="">
+    <div class="hl" id="hl"><span id="hlcount"></span></div>
+  </div>
   <p class="note">スペースキーでも さいせい・ていし できます</p>
 </main>
 
@@ -150,6 +165,10 @@
     glockenspiel: 'てっきん',
     xylophone: 'もっきん',
     bass:      '低音楽器（バスキー）',
+  };
+  // 小節ごとの 位置（楽譜画像の px）と 再生時刻。MuseScore の演奏順（くり返し込み）と 音源のテンポ（♩=92）から作成
+  const SYNC = {
+    recorder1: {"img":[1653,1900],"t0":0.03,"measure":1.304348,"order":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,49,50,51,52,53,54,55],"boxes":[[1,8,330,182,162,239],[9,9,506,182,136,239],[10,10,643,182,126,239],[11,11,770,182,123,239],[12,12,894,182,126,239],[13,13,1021,182,125,239],[14,14,1148,182,125,239],[15,15,1274,182,126,239],[16,16,1401,182,125,239],[17,17,190,539,119,239],[18,18,311,539,124,239],[19,19,437,539,122,239],[20,20,560,539,124,239],[21,21,686,539,124,239],[22,22,812,539,124,239],[23,23,938,539,123,239],[24,24,1063,539,181,239],[25,25,1245,539,106,239],[26,26,1352,539,182,239],[27,27,190,895,105,239],[28,28,297,895,129,239],[29,29,427,895,106,239],[30,30,534,895,106,239],[31,31,642,895,105,239],[32,32,749,895,129,239],[33,33,887,895,129,239],[34,34,1017,895,129,239],[35,35,1148,895,125,239],[36,36,1274,895,129,239],[37,37,1404,895,130,239],[38,38,190,1252,124,239],[39,39,323,1252,129,239],[40,40,453,1252,129,239],[41,44,584,1252,129,239],[45,48,715,1252,140,239],[49,49,868,1252,106,239],[50,50,976,1252,129,239],[51,51,1106,1252,106,239],[52,52,1213,1252,106,239],[53,53,1321,1252,105,239],[54,54,1428,1252,106,239],[55,55,190,1609,119,238]]},
   };
   const TRIAL = ['recorder1'];
   const audio = document.getElementById('audio');
@@ -252,6 +271,42 @@
   };
   navToggle.addEventListener('click', () => setClosed(!nav.classList.contains('closed')));
   try { if (localStorage.getItem('partsClosed') === '1') nav.classList.add('closed'); } catch (e) {}
+
+  // 演奏中の 小節を 赤く かこむ
+  const hl = document.getElementById('hl');
+  const hlCount = document.getElementById('hlcount');
+  const headerBottom = () => document.querySelector('.player').getBoundingClientRect().bottom;
+  let lastBox = -1, lastRow = null;
+  function drawHighlight() {
+    const sync = SYNC[current];
+    const t = audio.currentTime;
+    if (!sync || (audio.paused && t === 0) || audio.ended) { hl.classList.remove('show'); lastBox = -1; return; }
+    const i = Math.min(sync.order.length - 1, Math.max(0, Math.floor((t - sync.t0) / sync.measure)));
+    const m = sync.order[i];
+    const bi = sync.boxes.findIndex(b => m >= b[0] && m <= b[1]);
+    if (bi < 0) { hl.classList.remove('show'); return; }
+    const [m1, m2, x, y, w, h] = sync.boxes[bi];
+    const [W, H] = sync.img;
+    if (bi !== lastBox) {
+      hl.style.left = (x / W * 100) + '%';
+      hl.style.top = (y / H * 100) + '%';
+      hl.style.width = (w / W * 100) + '%';
+      hl.style.height = (h / H * 100) + '%';
+      hl.classList.add('show');
+      lastBox = bi;
+    }
+    hlCount.textContent = m2 > m1 ? 'やすみ ' + (m - m1 + 1) + ' / ' + (m2 - m1 + 1) : '';
+    // 段が かわったら、赤い わくが 見える 位置まで スクロール
+    if (!audio.paused && y !== lastRow) {
+      lastRow = y;
+      const r = hl.getBoundingClientRect();
+      const top = headerBottom();
+      if (r.top < top + 8 || r.bottom > window.innerHeight - 8) {
+        window.scrollBy({ top: r.top - top - 40, behavior: 'smooth' });
+      }
+    }
+  }
+  (function loop() { drawHighlight(); requestAnimationFrame(loop); })();
 
   selectPart(location.hash.slice(1));
 </script>
