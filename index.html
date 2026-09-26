@@ -79,7 +79,6 @@
   .hl {
     position: absolute; display: none; pointer-events: none;
     background: rgba(230, 0, 18, .16); border: 3px solid #e60012; border-radius: 8px;
-    transition: left .08s linear, top .08s linear, width .08s linear;
   }
   .hl.show { display: block; }
   .hl span {
@@ -278,12 +277,14 @@
   const hl = document.getElementById('hl');
   const hlCount = document.getElementById('hlcount');
   const headerBottom = () => document.querySelector('.player').getBoundingClientRect().bottom;
+  // 赤い わくを 音より 少し 早めに 動かす 秒数（遅く 感じたら 大きく、早すぎたら 小さく）
+  const LEAD = 0.2;
   let lastBox = -1, lastRow = null, lastPart = null;
   function drawHighlight() {
     const sync = SYNC[current];
     const t = audio.currentTime;
     if (!sync || (audio.paused && t === 0) || audio.ended) { hl.classList.remove('show'); lastBox = -1; return; }
-    const u = Math.max(0, (t - sync.t0) / sync.measure);
+    const u = Math.max(0, (t + LEAD * audio.playbackRate - sync.t0) / sync.measure);
     let i = 0;
     while (i + 1 < sync.ev.length && sync.ev[i + 1][1] <= u) i++;
     const [bi, start] = sync.ev[i];
