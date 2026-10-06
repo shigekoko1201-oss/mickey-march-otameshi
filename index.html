@@ -123,6 +123,14 @@
     .ctrl2 button { font-size: 14px; padding: 3px 8px; }
     .seek { flex-basis: 100%; }
   }
+  /* パートは ドロップダウンで えらぶ（ボタンの 段は かくす） */
+  .partnav, #partbtn { display: none !important; }
+  .partsel {
+    font: inherit; font-size: 18px; font-weight: bold; color: #1f6fd1;
+    min-height: 44px; padding: 4px 10px; border: 2px solid #1f6fd1; border-radius: 12px;
+    background: #fff; cursor: pointer; max-width: 100%;
+  }
+  @media (max-width: 600px) { .partsel { font-size: 16px; min-height: 40px; } }
 </style>
 </head>
 <body>
@@ -154,6 +162,7 @@
   <h1 class="sr">ミッキーマウス・マーチ</h1>
   <div class="ctrl">
     <button id="partbtn" type="button" class="partbtn" hidden>🎼 パート ▼</button>
+    <select id="partsel" class="partsel" aria-label="パートを えらぶ"></select>
     <button id="play" type="button">▶ さいせい</button>
     <button id="top" type="button">⏮ さいしょ</button>
     <button id="back" type="button">⏪ 5びょう</button>
@@ -239,6 +248,7 @@
       b.setAttribute('aria-selected', on);
     });
     current = part;
+    partSel.value = part;
     updateToggle();
     if (location.hash !== '#' + part) history.replaceState(null, '', '#' + part);
     update();
@@ -385,6 +395,24 @@
     update();
   }
   score.addEventListener('click', e => seekToScore(e, score));
+
+  // パートの ドロップダウン（グループ分けと ★は ボタンの 段と 同じ）
+  const GROUP_NAMES = { 'パート': 'ふえ・けんばんハーモニカ', 'がっき': 'てっきん・もっきん・低音楽器', 'だがっき': 'だがっき' };
+  const partSel = document.getElementById('partsel');
+  document.querySelectorAll('.parts').forEach(g => {
+    const og = document.createElement('optgroup');
+    og.label = GROUP_NAMES[g.getAttribute('aria-label')] || '';
+    g.querySelectorAll('[data-part]').forEach(b => {
+      const o = document.createElement('option');
+      o.value = b.dataset.part;
+      const stars = b.querySelector('small');
+      o.textContent = b.firstChild.textContent.trim() + (stars ? '　' + stars.textContent : '');
+      o.disabled = b.disabled;
+      og.appendChild(o);
+    });
+    partSel.appendChild(og);
+  });
+  partSel.addEventListener('change', () => { selectPart(partSel.value); window.scrollTo(0, 0); });
 
   selectPart(location.hash.slice(1));
 </script>
