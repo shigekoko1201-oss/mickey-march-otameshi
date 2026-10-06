@@ -95,12 +95,40 @@
     .parts button { min-width: 0; flex: 1 1 40%; }
     #play { min-width: 120px; font-size: 20px; }
   }
+  /* ---- 上の 操作部分を うすく まとめる ---- */
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .partnav.closed { display: none; }
+  .partnav { position: relative; }
+  .navtoggle { margin-bottom: 6px; }
+  @media (min-width: 900px) {
+    /* パートの 行の 右上に「かくす」を おいて、1行 へらす */
+    .navtoggle { position: absolute; right: 16px; top: 10px; margin: 0; z-index: 1; }
+  }
+  .player { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 18px; padding: 8px 16px; }
+  .ctrl { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+  .ctrl:first-of-type { flex: 1 1 560px; }
+  .ctrl button { min-height: 44px; padding: 6px 12px; }
+  #play { min-width: 130px; font-size: 20px; }
+  .partbtn { border-color: #1f6fd1; color: #1f6fd1; background: #fff; }
+  .seek { flex: 1 1 220px; margin: 0; max-width: none; }
+  .ctrl2 button { min-height: 38px; font-size: 16px; padding: 4px 10px; }
+  .speed { display: flex; align-items: center; gap: 6px; }
+  .speed span { font-size: 15px; }
+  .mode { display: flex; gap: 6px; margin: 0; }
+  .mode[hidden] { display: none; }
+  @media (max-width: 600px) {
+    .player { padding: 6px 10px; gap: 6px; }
+    .ctrl button { min-height: 40px; padding: 4px 8px; }
+    #play { min-width: 104px; font-size: 18px; }
+    .ctrl2 button { font-size: 14px; padding: 3px 8px; }
+    .seek { flex-basis: 100%; }
+  }
 </style>
 </head>
 <body>
 
 <nav class="partnav" id="partnav">
-  <div class="navtoggle"><button id="navtoggle" type="button" aria-expanded="true" aria-controls="partlist">▲ パートの ボタンを かくす</button></div>
+  <div class="navtoggle"><button id="navtoggle" type="button" aria-expanded="true" aria-controls="partlist">▲ パートを かくす</button></div>
   <div id="partlist">
   <div class="parts" role="tablist" aria-label="パート">
     <button type="button" role="tab" data-part="kenhamo1">けんハモ１<small>★★</small></button>
@@ -123,21 +151,24 @@
 </nav>
 
 <div class="player">
-  <div class="row">
-    <h1>ミッキーマウス・マーチ</h1>
+  <h1 class="sr">ミッキーマウス・マーチ</h1>
+  <div class="ctrl">
+    <button id="partbtn" type="button" class="partbtn" hidden>🎼 パート ▼</button>
     <button id="play" type="button">▶ さいせい</button>
-    <button id="top" type="button">⏮ さいしょから</button>
-    <button id="back" type="button">⏪ 5びょう もどる</button>
-    <div class="row speed" role="group" aria-label="はやさ">
+    <button id="top" type="button">⏮ さいしょ</button>
+    <button id="back" type="button">⏪ 5びょう</button>
+    <div class="seek">
+      <input id="bar" type="range" min="0" max="100" step="0.1" value="0" aria-label="いまの いち">
+      <div class="time" id="time">0:00 / 0:00</div>
+    </div>
+  </div>
+  <div class="ctrl ctrl2">
+    <div class="speed" role="group" aria-label="はやさ">
       <span>はやさ</span>
       <button type="button" data-rate="0.5">ゆっくり</button>
       <button type="button" data-rate="0.75">すこし ゆっくり</button>
       <button type="button" data-rate="1" class="on">ふつう</button>
     </div>
-  </div>
-  <div class="seek">
-    <input id="bar" type="range" min="0" max="100" step="0.1" value="0" aria-label="いまの いち">
-    <div class="time" id="time">0:00 / 0:00</div>
   </div>
 </div>
 
@@ -259,13 +290,17 @@
 
   // パートのボタンを かくす／だす（えらんだ状態は この端末に おぼえておく）
   const navToggle = document.getElementById('navtoggle');
+  const partBtn = document.getElementById('partbtn');
   function updateToggle() {
     const closed = nav.classList.contains('closed');
     const btn = document.querySelector('[data-part="' + current + '"]');
     const name = btn ? btn.firstChild.textContent.trim() : '';
-    navToggle.textContent = closed ? '▼ パートを えらぶ（いま：' + name + '）' : '▲ パートの ボタンを かくす';
+    navToggle.textContent = '▲ パートを かくす';
     navToggle.setAttribute('aria-expanded', !closed);
+    partBtn.textContent = '🎼 ' + name + ' ▼';
+    partBtn.hidden = !closed;
   }
+  partBtn.addEventListener('click', () => { setClosed(false); window.scrollTo(0, 0); });
   const setClosed = closed => {
     nav.classList.toggle('closed', closed);
     updateToggle();
