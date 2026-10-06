@@ -86,6 +86,7 @@
     font-size: 14px; font-weight: bold; padding: 1px 8px; border-radius: 10px; white-space: nowrap;
   }
   .hl span:empty { display: none; }
+  .scorewrap .score { cursor: pointer; }
   .note { text-align: center; color: var(--sub); font-size: 14px; margin-top: 16px; }
 
   @media (max-width: 600px) {
@@ -146,7 +147,7 @@
     <img class="score" id="score" alt="">
     <div class="hl" id="hl"><span id="hlcount"></span></div>
   </div>
-  <p class="note">スペースキーでも さいせい・ていし できます</p>
+  <p class="note">がくふを タッチすると、そこから さいせい します。スペースキーでも さいせい・ていし できます</p>
 </main>
 
 <audio id="audio" preload="auto"></audio>
@@ -312,6 +313,43 @@
     }
   }
   (function loop() { drawHighlight(); requestAnimationFrame(loop); })();
+
+  // 楽譜を タッチすると、その 小節の 頭から 再生
+  // くり返しで 2回 出てくる 小節は、いまの 再生位置に 近い ほうへ とぶ
+  const START_EARLY = 0.1;     // 小節の 頭より 少しだけ 前から 鳴らす（秒）
+  function seekToScore(e, img) {
+    const sync = SYNC[current];
+    if (!sync) return;
+    const r = img.getBoundingClientRect();
+    const [W, H] = sync.img;
+    const px = (e.clientX - r.left) / r.width * W;
+    const py = (e.clientY - r.top) / r.height * H;
+    let bi = sync.boxes.findIndex(([x, y, w, h]) => px >= x && px < x + w && py >= y && py < y + h);
+    if (bi < 0) {
+      // 段の 左はし（ト音記号 など）を タッチしたときは、その 段の いちばん 近い 小節
+      let best = Infinity;
+      sync.boxes.forEach(([x, y, w, h], i) => {
+        if (py < y || py >= y + h) return;
+        const d = Math.min(Math.abs(px - x), Math.abs(px - (x + w)));
+        if (d < best) { best = d; bi = i; }
+      });
+    }
+    if (bi < 0) return;
+    const el = audio;
+    const offset = 0;
+    const nowU = (el.currentTime - offset - sync.t0) / sync.measure;
+    let target = null;
+    for (const [b, start] of sync.ev) {
+      if (b !== bi) continue;
+      if (target === null || Math.abs(start - nowU) < Math.abs(target - nowU)) target = start;
+    }
+    if (target === null) return;
+    el.currentTime = Math.max(0, sync.t0 + target * sync.measure + offset - START_EARLY);
+    lastBox = -1;
+    if (el.paused) el.play();
+    update();
+  }
+  score.addEventListener('click', e => seekToScore(e, score));
 
   selectPart(location.hash.slice(1));
 </script>
